@@ -10,21 +10,26 @@ type Emulator struct {
 	CPU      *CPU
 	Keyboard *Keyboard
 	Screen   *Screen
+	Memory   *Memory
 	running  bool
 }
 
 func NewEmulator(filename string) *Emulator {
 	e := &Emulator{
-		CPU:      NewCPU(),
-		Screen:   NewScreen(),
 		Keyboard: NewKeyboard(),
 		running:  true,
 	}
+	e.Memory = NewMemory()
+	e.CPU = NewCPU()
+	e.Screen = NewScreen(e.Memory)
+
 	var err error
 	e.Rom, err = NewRom(filename)
 	if err != nil {
 		panic(fmt.Errorf("create chip8 emulator failed: %s", err.Error()))
 	}
+
+	e.CPU.ConnectMemory(e.Memory)
 	e.CPU.InitMemory(e.Rom.data)
 	e.CPU.ConnectKeyboard(e.Keyboard)
 	e.CPU.ConnectScreen(e.Screen)
@@ -62,7 +67,7 @@ func (e *Emulator) start() {
 			}
 		}
 		//
-		sdl.Delay(1000 / 60)
+		sdl.Delay(1000 / 100)
 	}
 }
 

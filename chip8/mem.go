@@ -42,6 +42,7 @@ func (m *Memory) LoadFrom(data []byte) {
 	if len(data) > MemorySize {
 		panic("data size more than memory max size")
 	}
+	// 复制ROM文件数据到 0x200 起始处
 	copy(m.mem[BaseAddress:], data[:])
 }
 

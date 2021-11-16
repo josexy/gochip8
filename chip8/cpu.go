@@ -17,11 +17,11 @@ type external struct {
 
 type CPU struct {
 	external
-	PC         Address   // 程序计数器
-	I          Address   // 地址寄存器
-	SP         byte      // 栈指针寄存器
-	STACK      []Address // 用于存储 subroutine 返回地址
-	V          []byte    // 通用寄存器，其中 V[0xF]是进位标志
+	PC Address // 程序计数器
+	I  Address // 地址寄存器
+	SP byte    // 栈指针寄存器
+	STACK      []byte // 用于存储 subroutine 返回地址
+	V          []byte // 通用寄存器，其中 V[0xF]是进位标志
 	delayTimer int
 	soundTimer int
 	halted     bool
@@ -33,7 +33,6 @@ func NewCPU() *CPU {
 	rand.Seed(time.Now().UnixNano())
 	cpu := &CPU{}
 	cpu.reset()
-	cpu.mem = NewMemory()
 	return cpu
 }
 
@@ -45,11 +44,18 @@ func (c *CPU) ConnectKeyboard(keyboard *Keyboard) {
 	c.keyboard = keyboard
 }
 
+func (c *CPU) ConnectMemory(memory *Memory) {
+	c.mem = memory
+	c.STACK = c.mem.mem[0xEA0 : 0xEA0+16]
+}
+
 func (c *CPU) reset() {
 	c.PC = BaseAddress
 	c.I = 0
 	c.SP = 0
-	c.STACK = make([]Address, 16)
+	if c.mem != nil {
+		c.STACK = c.mem.mem[0xEA0 : 0xEA0+16]
+	}
 	c.V = make([]byte, 16)
 	c.delayTimer = 0
 	c.soundTimer = 0
@@ -59,13 +65,18 @@ func (c *CPU) reset() {
 }
 
 func (c *CPU) pushPC() {
-	c.STACK[c.SP] = c.PC
+	c.STACK[c.SP] = byte(c.PC >> 8) // high
+	c.SP++
+	c.STACK[c.SP] = byte(c.PC & 0xFF) // low
 	c.SP++
 }
 
 func (c *CPU) popPC() {
 	c.SP--
-	c.PC = c.STACK[c.SP]
+	low := c.STACK[c.SP] // low
+	c.SP--
+	high := c.STACK[c.SP] // high
+	c.PC = Address(high)<<8 | Address(low)
 }
 
 func (c *CPU) InitMemory(data []byte) {
@@ -136,18 +147,18 @@ func (c *CPU) draw(vx, vy, n int) {
 	fmt.Printf("-> vx:%d, vy:%d, n:%d\n", vx, vy, n)
 	c.V[0xF] = 0
 	for y := 0; y < n; y++ {
-		// 从内存中取出一个像素pixel
-		pixel := c.mem.Read(c.I + Address(y))
+		// 从内存中取出一个字节
+		b := c.mem.Read(c.I + Address(y))
 		// 并计算该像素的8位中哪一位需要翻转
 		for x := 0; x < 8; x++ {
 			// 该位是否需要翻转，翻转的目的是产生其他的sprite
-			if pixel&(1<<(7-x)) > 0 {
+			if b&(1<<(7-x)) > 0 {
 				nx := (vx + x) % WIDTH
 				ny := (vy + y) % HEIGHT
 				if c.screen.pixel(nx, ny) {
 					c.V[0xF] = 1
 				}
-				c.screen.flip(nx, ny, true)
+				c.screen.flip(nx, ny)
 			}
 		}
 	}

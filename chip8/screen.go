@@ -43,9 +43,10 @@ type Screen struct {
 	renderer *sdl.Renderer
 }
 
-func NewScreen() *Screen {
+func NewScreen(memory *Memory) *Screen {
 	s := &Screen{
-		pixels: make([]byte, HEIGHT*WIDTH),
+		// 显示屏数据存储在内存 [0xF00-0xFFF] 区域，即 256 字节
+		pixels: memory.mem[0xF00:],
 	}
 	s.InitScreen()
 	return s
@@ -99,25 +100,28 @@ func (s *Screen) update() {
 				H: int32(hSize),
 			}
 			if s.pixel(x, y) {
+				// 前景色
 				_ = s.renderer.SetDrawColor(ForegroundColor[0], ForegroundColor[1], ForegroundColor[2], 255)
 			} else {
+				// 背景色
 				_ = s.renderer.SetDrawColor(BackgroundColor[0], BackgroundColor[1], BackgroundColor[2], 255)
 			}
 			_ = s.renderer.FillRect(&rect)
 		}
 	}
 
+	// 重新更新、渲染
 	s.renderer.Present()
 }
 
 func (s *Screen) pixel(x, y int) bool {
 	addr := y*WIDTH + x
-	return s.pixels[addr] != 0
+	// 判断一个字节中对应的某位是是1还是0
+	return s.pixels[addr/8]&(1<<(addr%8)) != 0
 }
 
-func (s *Screen) flip(x, y int, flip bool) {
+func (s *Screen) flip(x, y int) {
 	addr := y*WIDTH + x
-	if flip {
-		s.pixels[addr] ^= 1
-	}
+	// 将某个字节中某位反转
+	s.pixels[addr/8] ^= 1 << (addr % 8)
 }
