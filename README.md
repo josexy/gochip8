@@ -1,6 +1,8 @@
 ## gochip8
 simple chip8 emulator written with Go and SDL2
 
+Blog: https://www.joxrays.com/golang-chip8-emulator
+
 ## sample
 ```shell
 go get github.com/josexy/gochip8
